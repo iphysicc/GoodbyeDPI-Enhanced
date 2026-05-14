@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _WIN32
     #include <unistd.h>
@@ -1181,10 +1182,25 @@ int main(int argc, char *argv[]) {
         exit(EXIT_SUCCESS);
     }
     printf("Filter activated, GoodbyeDPI is now running!\n");
+    printf("[INFO] Waiting for packets...\n");
+    fflush(stdout);
     signal(SIGINT, sigint_handler);
+
+    unsigned long pkt_total = 0, pkt_modified = 0, pkt_dropped = 0, pkt_fake = 0;
+    time_t last_stats = time(NULL);
 
     while (1) {
         if (WinDivertRecv(w_filter, packet, sizeof(packet), &packetLen, &addr)) {
+            pkt_total++;
+
+            /* Print stats every 10 seconds */
+            if (difftime(time(NULL), last_stats) >= 10.0) {
+                printf("[STATS] Packets: %lu total, %lu modified, %lu dropped, %lu fakes\n",
+                       pkt_total, pkt_modified, pkt_dropped, pkt_fake);
+                fflush(stdout);
+                last_stats = time(NULL);
+            }
+
             debug("Got %s packet, len=%d!\n", addr.Outbound ? "outbound" : "inbound",
                    packetLen);
             should_reinject = 1;
@@ -1243,18 +1259,16 @@ int main(int argc, char *argv[]) {
                     /* Drop packets from filter with HTTP 30x Redirect */
                     if (do_passivedpi && is_passivedpi_redirect(packet_data, packet_dataLen)) {
                         if (packet_v4) {
-                            //printf("Dropping HTTP Redirect packet!\n");
+                            printf("[BLOCK] Dropped passive DPI redirect (IPv4 HTTP 302)\n");
+                            fflush(stdout);
                             should_reinject = 0;
+                            pkt_dropped++;
                         }
                         else if (packet_v6 && WINDIVERT_IPV6HDR_GET_FLOWLABEL(ppIpV6Hdr) == 0x0) {
-                                /* Contrary to IPv4 where we get only packets with IP ID 0x0-0xF,
-                                 * for IPv6 we got all the incoming data packets since we can't
-                                 * filter them in a driver.
-                                 *
-                                 * Handle only IPv6 Flow Label == 0x0 for now
-                                 */
-                                //printf("Dropping HTTP Redirect packet!\n");
+                                printf("[BLOCK] Dropped passive DPI redirect (IPv6)\n");
+                                fflush(stdout);
                                 should_reinject = 0;
+                                pkt_dropped++;
                         }
                     }
                 }
