@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <arpa/inet.h>
@@ -739,9 +740,17 @@ int main(int argc, char *argv[]) {
     filter_num++;
 
     if (!w_filter) {
-        printf("Error: Could not open packet filter!\n");
+        printf("[ERROR] Could not open packet filter!\n");
+        printf("[ERROR] Make sure you have root/admin privileges and the required\n");
+        printf("[ERROR] kernel modules or drivers are loaded.\n");
+        printf("[ERROR] Linux: sudo apt install libnetfilter-queue1 && run setup-iptables.sh\n");
+        printf("[ERROR] macOS: run setup-pf.sh\n");
+        fflush(stdout);
         die();
     }
+
+    printf("[OK] Packet filter opened successfully.\n");
+    fflush(stdout);
 
     if (debug_exit) {
         printf("Debug Exit\n");
@@ -760,8 +769,27 @@ int main(int argc, char *argv[]) {
     /* ============================================================
      * Main packet processing loop
      * ============================================================ */
+    unsigned long pkt_count = 0;
+    unsigned long pkt_modified = 0;
+    unsigned long pkt_dropped = 0;
+    unsigned long pkt_fake_sent = 0;
+    time_t last_stats_time = time(NULL);
+
+    printf("[INFO] Entering main packet loop...\n");
+    fflush(stdout);
+
     while (1) {
         if (pkt_receive(w_filter, &pkt)) {
+            pkt_count++;
+
+            /* Print stats every 10 seconds */
+            time_t now = time(NULL);
+            if (difftime(now, last_stats_time) >= 10.0) {
+                printf("[STATS] Packets: %lu total, %lu modified, %lu dropped, %lu fakes sent\n",
+                       pkt_count, pkt_modified, pkt_dropped, pkt_fake_sent);
+                fflush(stdout);
+                last_stats_time = now;
+            }
             debug("Got %s packet, len=%d!\n",
                    pkt.direction == PACKET_DIR_OUTBOUND ? "outbound" : "inbound",
                    pkt.raw_packet_len);
@@ -777,9 +805,15 @@ int main(int argc, char *argv[]) {
                 if (pkt.direction == PACKET_DIR_INBOUND && pkt.payload_len > 16) {
                     if (do_passivedpi && is_passivedpi_redirect((char*)pkt.payload, pkt.payload_len)) {
                         if (!pkt.is_ipv6) {
+                            printf("[BLOCK] Dropped passive DPI redirect (HTTP 302) from port %d\n", pkt.src_port);
+                            fflush(stdout);
                             should_reinject = 0;
+                            pkt_dropped++;
                         } else if (pkt.is_ipv6 && pkt.ipv6_flow_label == 0x0) {
+                            printf("[BLOCK] Dropped passive DPI redirect (IPv6) from port %d\n", pkt.src_port);
+                            fflush(stdout);
                             should_reinject = 0;
+                            pkt_dropped++;
                         }
                     }
                 }
@@ -825,9 +859,14 @@ int main(int argc, char *argv[]) {
                                         }
                                     }
                                 }
-                                if (should_send_fake)
+                                if (should_send_fake) {
                                     send_fake_https_request(w_filter, &pkt,
                                         ttl_of_fake_packet, do_wrong_chksum, do_wrong_seq);
+                                    pkt_fake_sent++;
+                                    printf("[FAKE] Sent fake HTTPS to port %d (TTL=%d, chksum=%d, seq=%d)\n",
+                                           pkt.dst_port, ttl_of_fake_packet, do_wrong_chksum, do_wrong_seq);
+                                    fflush(stdout);
+                                }
                             }
                             if (do_native_frag) {
                                 should_recalc_checksum = 1;
@@ -875,19 +914,30 @@ int main(int argc, char *argv[]) {
                                     }
                                 }
                             }
-                            if (should_send_fake)
+                            if (should_send_fake) {
                                 send_fake_http_request(w_filter, &pkt,
                                     ttl_of_fake_packet, do_wrong_chksum, do_wrong_seq);
+                                pkt_fake_sent++;
+                                printf("[FAKE] Sent fake HTTP to port %d (TTL=%d, chksum=%d, seq=%d)\n",
+                                       pkt.dst_port, ttl_of_fake_packet, do_wrong_chksum, do_wrong_seq);
+                                fflush(stdout);
+                            }
                         }
 
                         if (do_host_mixedcase) {
                             mix_case(host_addr, host_len);
                             should_recalc_checksum = 1;
+                            printf("[HTTP] Mixed case Host header\n");
+                            fflush(stdout);
+                            pkt_modified++;
                         }
 
                         if (do_host) {
                             memcpy(hdr_name_addr, http_host_replace, strlen(http_host_replace));
                             should_recalc_checksum = 1;
+                            printf("[HTTP] Replaced Host -> hoSt\n");
+                            fflush(stdout);
+                            pkt_modified++;
                         }
 
                         if (do_additional_space && do_host_removespace) {
@@ -939,6 +989,10 @@ int main(int argc, char *argv[]) {
                     }
 
                     if (current_fragment_size) {
+                        printf("[FRAG] Splitting packet to port %d (frag_size=%u, reverse=%d)\n",
+                               pkt.dst_port, current_fragment_size, do_reverse_frag);
+                        fflush(stdout);
+                        pkt_modified++;
                         send_native_fragment(w_filter, &pkt,
                                             current_fragment_size, do_reverse_frag);
                         send_native_fragment(w_filter, &pkt,
@@ -1012,7 +1066,8 @@ int main(int argc, char *argv[]) {
         }
         else {
             if (!exiting)
-                printf("Error receiving packet!\n");
+                printf("[ERROR] Error receiving packet! (errno or filter closed)\n");
+            fflush(stdout);
             break;
         }
     }

@@ -6,3 +6,8 @@ build/
 cmake-build-*/
 CMakeCache.txt
 CMakeFiles/
+gui/
+# GUI
+gui/node_modules/
+gui/dist/
+gui/src-tauri/target/
