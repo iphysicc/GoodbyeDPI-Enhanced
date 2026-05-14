@@ -2,6 +2,13 @@
 #define _DNSREDIR_H
 #include <stdint.h>
 
+/* Forward declaration of UINT for cross-platform compatibility */
+#ifndef _WIN32
+    #ifndef UINT
+        typedef unsigned int UINT;
+    #endif
+#endif
+
 typedef struct conntrack_info {
     uint8_t  is_ipv6;
     uint32_t srcip[4];
@@ -34,6 +41,6 @@ int dns_handle_outgoing(const uint32_t srcip[4], const uint16_t srcport,
                         const uint8_t is_ipv6
                        );
 
-void flush_dns_cache();
+void flush_dns_cache(void);
 int dns_is_dns_packet(const char *packet_data, const UINT packet_dataLen, const int outgoing);
 #endif

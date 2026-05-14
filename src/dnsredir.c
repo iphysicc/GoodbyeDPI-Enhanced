@@ -10,10 +10,12 @@
  * But anyway, it works fine for DNS.
  */
 
-#include <windows.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "goodbyedpi.h"
+#include "platform/platform.h"
 #include "dnsredir.h"
 #include "utils/uthash.h"
 
@@ -44,19 +46,7 @@ static time_t last_cleanup = 0;
 static udp_connrecord_t *conntrack = NULL;
 
 void flush_dns_cache() {
-    INT_PTR WINAPI (*DnsFlushResolverCache)();
-
-    HMODULE dnsapi = LoadLibrary("dnsapi.dll");
-    if (dnsapi == NULL)
-    {
-        printf("Can't load dnsapi.dll to flush DNS cache!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    DnsFlushResolverCache = GetProcAddress(dnsapi, "DnsFlushResolverCache");
-    if (DnsFlushResolverCache == NULL || !DnsFlushResolverCache())
-        printf("Can't flush DNS cache!");
-    FreeLibrary(dnsapi);
+    os_flush_dns_cache();
 }
 
 inline static void fill_key_data(char *key, const uint8_t is_ipv6, const uint32_t srcip[4],

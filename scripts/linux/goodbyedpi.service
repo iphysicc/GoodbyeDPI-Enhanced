@@ -1,0 +1,20 @@
+[Unit]
+Description=GoodbyeDPI - Passive DPI blocker and Active DPI circumvention utility
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/share/goodbyedpi/setup-iptables.sh start
+ExecStart=/usr/local/bin/goodbyedpi
+ExecStopPost=/usr/local/share/goodbyedpi/setup-iptables.sh stop
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=no
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

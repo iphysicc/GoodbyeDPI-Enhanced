@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - 'src/**'
+      - 'CMakeLists.txt'
   pull_request:
     paths:
       - 'src/**'
+      - 'CMakeLists.txt'
   workflow_dispatch:
 
 env:
@@ -16,7 +18,10 @@ env:
   WINDIVERT_SHA256: 1d461cfdfa7ba88ebcfbb3603b71b703e9f72aba8aeff99a75ce293e6f89d2ba
 
 jobs:
-  build:
+  # ============================================================
+  # Windows Build (original Makefile - x86_64 and i686)
+  # ============================================================
+  build-windows:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,3 +84,62 @@ jobs:
         with:
           name: goodbyedpi_x86_${{ steps.vars.outputs.sha_short }}
           path: goodbyedpi_x86_${{ steps.vars.outputs.sha_short }}
+
+  # ============================================================
+  # Linux Build (CMake + nfqueue)
+  # ============================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Declare short commit variable
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libnetfilter-queue-dev
+
+      - name: Build with CMake
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: goodbyedpi_linux_x86_64_${{ steps.vars.outputs.sha_short }}
+          path: build/goodbyedpi
+
+  # ============================================================
+  # macOS Build (CMake + divert sockets)
+  # ============================================================
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Declare short commit variable
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          brew install cmake
+
+      - name: Build with CMake
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: goodbyedpi_macos_${{ steps.vars.outputs.sha_short }}
+          path: build/goodbyedpi

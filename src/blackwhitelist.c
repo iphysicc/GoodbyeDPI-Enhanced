@@ -5,8 +5,9 @@
  * Domain records are added from a text file, where every
  * domain is separated with a new line.
  */
-#include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "goodbyedpi.h"
 #include "utils/uthash.h"
 #include "utils/getline.h"
