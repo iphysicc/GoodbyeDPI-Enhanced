@@ -32,11 +32,15 @@ typedef enum {
 } packet_direction_t;
 
 /* IP protocol numbers */
-#ifndef IPPROTO_TCP
-#define IPPROTO_TCP 6
-#endif
-#ifndef IPPROTO_UDP
-#define IPPROTO_UDP 17
+/* Note: On POSIX systems these are defined as enums in <netinet/in.h>,
+ * so we only define them on Windows where they may not exist. */
+#ifdef _WIN32
+    #ifndef IPPROTO_TCP
+    #define IPPROTO_TCP 6
+    #endif
+    #ifndef IPPROTO_UDP
+    #define IPPROTO_UDP 17
+    #endif
 #endif
 
 /*

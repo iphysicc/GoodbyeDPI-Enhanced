@@ -752,6 +752,11 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
     signal(SIGTERM, sigint_handler);
 
+    /* Suppress unused variable warnings for features not yet fully ported */
+    (void)do_dns_verb;
+    (void)dnsv4_port;
+    (void)dnsv6_port;
+
     /* ============================================================
      * Main packet processing loop
      * ============================================================ */
@@ -927,7 +932,7 @@ int main(int argc, char *argv[]) {
                         current_fragment_size = http_fragment_size;
                     } else if (do_fragment_https && pkt.dst_port != 80) {
                         if (do_fragment_by_sni && sni_ok) {
-                            current_fragment_size = (unsigned int)((void*)host_addr - (void*)pkt.payload);
+                            current_fragment_size = (unsigned int)((char*)host_addr - (char*)pkt.payload);
                         } else {
                             current_fragment_size = https_fragment_size;
                         }

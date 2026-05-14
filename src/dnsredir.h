@@ -1,13 +1,7 @@
 #ifndef _DNSREDIR_H
 #define _DNSREDIR_H
 #include <stdint.h>
-
-/* Forward declaration of UINT for cross-platform compatibility */
-#ifndef _WIN32
-    #ifndef UINT
-        typedef unsigned int UINT;
-    #endif
-#endif
+#include "goodbyedpi.h"
 
 typedef struct conntrack_info {
     uint8_t  is_ipv6;

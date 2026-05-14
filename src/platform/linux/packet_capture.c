@@ -96,7 +96,7 @@ static uint16_t ip_checksum(const struct iphdr *iph) {
     return (uint16_t)~sum;
 }
 
-static int nfq_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+static int gdpi_nfq_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
                          struct nfq_data *nfa, void *data) {
     (void)qh;
     (void)nfmsg;
@@ -132,10 +132,7 @@ static int nfq_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     pkt_info->raw_packet = ctx->packet_buf;
     pkt_info->raw_packet_len = ctx->packet_len;
 
-    /* Determine direction from hook (INPUT=inbound, OUTPUT=outbound) */
-    uint32_t hook = nfq_get_nfmark(nfa);
-    /* Use the packet hook number for direction detection */
-    /* NF_IP_LOCAL_IN = 1, NF_IP_LOCAL_OUT = 3 */
+    /* Direction: if from indev, it's inbound */
     uint32_t indev = nfq_get_indev(nfa);
     pkt_info->direction = (indev != 0) ? PACKET_DIR_INBOUND : PACKET_DIR_OUTBOUND;
 
@@ -276,7 +273,7 @@ pkt_handle_t pkt_open(const char *filter_expr, uint32_t flags) {
     nfq_bind_pf(lh->nfq_h, AF_INET6);
 
     /* Create queue */
-    lh->nfq_qh = nfq_create_queue(lh->nfq_h, lh->queue_num, &nfq_callback, lh);
+    lh->nfq_qh = nfq_create_queue(lh->nfq_h, lh->queue_num, &gdpi_nfq_callback, lh);
     if (!lh->nfq_qh) {
         printf("Error: nfq_create_queue() failed for queue %d\n", lh->queue_num);
         nfq_close(lh->nfq_h);
@@ -330,13 +327,12 @@ int pkt_send(pkt_handle_t handle, packet_info_t *pkt_info) {
 
 int pkt_send_raw(pkt_handle_t handle, packet_info_t *pkt_info,
                  const uint8_t *raw_data, uint32_t data_len) {
-    linux_pkt_ctx_t *ctx;
     int sock;
     struct sockaddr_in dst4;
     struct sockaddr_in6 dst6;
 
     if (!handle || !pkt_info) return 0;
-    ctx = (linux_pkt_ctx_t *)pkt_info->platform_ctx_data;
+    (void)pkt_info; /* Used only for context on other platforms */
 
     /* Use raw socket to inject the packet */
     uint8_t version = (raw_data[0] >> 4) & 0x0F;
