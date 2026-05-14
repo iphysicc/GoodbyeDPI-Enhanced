@@ -41,7 +41,7 @@ endif
 default: $(TARGET)
 all: default
 
-OBJECTS = $(patsubst %.c, %.o, $(filter-out goodbyedpi_main.c, $(wildcard *.c)) utils/*.c) goodbyedpi-rc.o
+OBJECTS = $(patsubst %.c, %.o, $(filter-out goodbyedpi_main.c, $(wildcard *.c)) $(wildcard utils/*.c)) goodbyedpi-rc.o
 HEADERS = $(wildcard *.h utils/*.h)
 
 %.o: %.c $(HEADERS)
