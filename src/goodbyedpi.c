@@ -29,7 +29,6 @@
 #include "ttltrack.h"
 #include "blackwhitelist.h"
 #include "fakepackets.h"
-#include "platform/platform.h"
 
 #ifdef _WIN32
 // My mingw installation does not load inet_pton definition for some reason

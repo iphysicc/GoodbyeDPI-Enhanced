@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "goodbyedpi.h"
+#ifndef _WIN32
 #include "platform/platform.h"
+#endif
 #include "dnsredir.h"
 #include "utils/uthash.h"
 
@@ -46,7 +48,20 @@ static time_t last_cleanup = 0;
 static udp_connrecord_t *conntrack = NULL;
 
 void flush_dns_cache() {
+#ifdef _WIN32
+    INT_PTR WINAPI (*DnsFlushResolverCache)();
+    HMODULE dnsapi = LoadLibrary("dnsapi.dll");
+    if (dnsapi == NULL) {
+        printf("Can't load dnsapi.dll to flush DNS cache!\n");
+        return;
+    }
+    DnsFlushResolverCache = (void*)GetProcAddress(dnsapi, "DnsFlushResolverCache");
+    if (DnsFlushResolverCache == NULL || !DnsFlushResolverCache())
+        printf("Can't flush DNS cache!\n");
+    FreeLibrary(dnsapi);
+#else
     os_flush_dns_cache();
+#endif
 }
 
 inline static void fill_key_data(char *key, const uint8_t is_ipv6, const uint32_t srcip[4],

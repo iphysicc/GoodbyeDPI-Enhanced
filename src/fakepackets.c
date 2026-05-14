@@ -1,4 +1,5 @@
 #include <stdio.h>
+#define _CRT_RAND_S
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
@@ -10,8 +11,16 @@
     #include <in6addr.h>
     #include <ws2tcpip.h>
     #include "windivert.h"
+    /* On Windows (Makefile build), use rand_s directly */
+    static int os_random_uint32(uint32_t *out) {
+        unsigned int val;
+        if (rand_s(&val) != 0) return -1;
+        *out = (uint32_t)val;
+        return 0;
+    }
+#else
+    #include "platform/platform.h"
 #endif
-#include "platform/platform.h"
 
 struct fake_t {
     const unsigned char* data;
