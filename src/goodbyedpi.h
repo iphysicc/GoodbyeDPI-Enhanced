@@ -25,8 +25,8 @@
 
 /* Platform-independent type aliases for compatibility with existing code */
 #ifdef _WIN32
-    #include <windows.h>
     #include <winsock2.h>
+    #include <windows.h>
     /* BYTE, UINT, BOOL, HANDLE etc. already defined by windows.h */
 #else
     #include <stdint.h>
